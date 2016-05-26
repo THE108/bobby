@@ -1,0 +1,25 @@
+main:
+  host: 0.0.0.0
+  port: 8080
+slack:
+  token: <slack token>
+  channel: <slack channel>
+jira:
+  token: <jira token>
+pagerduty:
+  token: <pagerduty token>
+  subdomain: <your subdomain on pagerduty>
+  timezone: Moscow
+duty_command:
+  token: <slack auth token for duty command>
+  schedule_ids:
+    - <your schedule id>
+  cache_ttl: 5m
+timelogs_command:
+  token: <slack auth token for timelogs command>
+  minimum_time_logged: 6h
+  cache_ttl: 5m
+  team:
+    "jonny.walker":    "Johny Walker"
+    "john.doe":        "John Doe"
+send_daily_message_time: 09:47
