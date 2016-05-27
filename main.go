@@ -34,6 +34,12 @@ func initCommandProcessManager(cfg *config.Config, slackClient processors.ISlack
 			ScheduleIDs:     cfg.DutyCommand.ScheduleIDs,
 		},
 	})
+
+	userNameToJiraLoginMap := make(map[string]string, len(cfg.TimelogsCommand.Team))
+	for _, user := range cfg.TimelogsCommand.Team {
+		userNameToJiraLoginMap[user.Name] = user.JiraLogin
+	}
+
 	commandProcessManager.AddCommandProcessor("timelogs", &processors.PostponedCommandProcessor{
 		Token:         cfg.TimelogsCommand.Token,
 		SlackClient:   slackClient,
@@ -41,7 +47,7 @@ func initCommandProcessManager(cfg *config.Config, slackClient processors.ISlack
 		CacheDuration: cfg.TimelogsCommand.CacheTTL,
 		Processor: &processors.TimeLogsCommandProcessor{
 			JiraClient:       jiraClient,
-			Users:            cfg.TimelogsCommand.Team,
+			Users:            userNameToJiraLoginMap,
 			MinimumTimeSpent: cfg.TimelogsCommand.MinimumTimeSpent,
 		},
 	})

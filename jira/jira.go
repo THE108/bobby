@@ -16,31 +16,6 @@ const (
 	jiraPath   = "/rest/timesheet-gadget/1.0/raw-timesheet.json"
 )
 
-var _ string = `{
-  "worklog": [
-    {
-      "key": "GOPHP-1389",
-      "summary": "Add new fields to voucher template",
-      "entries": [
-        {
-          "id": 99920,
-          "comment": "",
-          "timeSpent": 28800,
-          "author": "elmir.khafizov",
-          "authorFullName": "Elmir Khafizov",
-          "created": 1460384210000,
-          "startDate": 1460384160000,
-          "updateAuthor": "elmir.khafizov",
-          "updateAuthorFullName": "Elmir Khafizov",
-          "updated": 1460384210000
-        }
-      ]
-    }
-  ],
-  "startDate": 1460307600000,
-  "endDate": 1460394000000
-}`
-
 type Entrie struct {
 	ID                   uint64 `json:"id"`
 	Comment              string `json:"string"`
@@ -215,32 +190,4 @@ func (this *Client) GetUsersLoggedLessThenMin(users map[string]string, from, to 
 	}
 
 	return result, nil
-}
-
-func main_jira() {
-	token := `YW5kcmV5Y2hlcm5vdjphbGNoRVcxaw==`
-	team := map[string]string{
-		"andreychernov":    "Andrey Chernov",
-		"rustam.zagirov":   "Rustam Zagirov",
-		"elmir.khafizov":   "Elmir Khafizov",
-		"timur.nurutdinov": "Timur Nurutdinov",
-		"evgeny.pak":       "Evgeny Pak",
-		"toannguyendinh":   "Toan Nguyen",
-	}
-
-	from := time.Date(2016, time.April, 20, 0, 0, 0, 0, time.UTC)
-	to := time.Date(2016, time.April, 21, 0, 0, 0, 0, time.UTC)
-	minimumTimeSpent := 6 * time.Hour
-
-	c := NewClient(token)
-
-	usersLogs, err := c.GetUsersLoggedLessThenMin(team, from, to, minimumTimeSpent)
-	if err != nil {
-		fmt.Printf("%s\n", err)
-		return
-	}
-
-	for _, usersLog := range usersLogs {
-		fmt.Printf("-> User %s logged only %v from %v to %v\n", usersLog.Name, usersLog.TimeSpent, from, to)
-	}
 }

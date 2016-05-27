@@ -21,6 +21,8 @@ func NewClient(token string) *Client {
 
 func (this *Client) SendMessage(channelID, text string) error {
 	_, _, err := this.cli.PostMessage(channelID, text, sc.PostMessageParameters{
+		Username: "BOB API BOT",
+		//IconEmoji: ":stalin:",
 		AsUser: true,
 	})
 	return err

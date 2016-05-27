@@ -28,16 +28,16 @@ type Config struct {
 	} `yaml:"pagerduty"`
 	DutyCommand struct {
 		Token       string        `yaml:"token"`
-		ScheduleIDs []string      `yaml:"schedule_ids"`
-		CacheTTL    time.Duration `yaml:"cache_ttl"`
-	} `yaml:"duty_command"`
+		ScheduleIDs []string      `yaml:"schedule-ids"`
+		CacheTTL    time.Duration `yaml:"cache-ttl"`
+	} `yaml:"duty-command"`
 	TimelogsCommand struct {
-		Token            string            `yaml:"token"`
-		Team             map[string]string `yaml:"team"`
-		MinimumTimeSpent time.Duration     `yaml:"minimum_time_logged"`
-		CacheTTL         time.Duration     `yaml:"cache_ttl"`
-	} `yaml:"timelogs_command"`
-	SendDailyMessageTime string `yaml:"send_daily_message_time"`
+		Token            string        `yaml:"token"`
+		Team             []User        `yaml:"team"`
+		MinimumTimeSpent time.Duration `yaml:"minimum-time-logged"`
+		CacheTTL         time.Duration `yaml:"cache-ttl"`
+	} `yaml:"timelogs-command"`
+	SendDailyMessageTime string `yaml:"send-daily-message-time"`
 }
 
 func ParseConfig(filename string) (*Config, error) {

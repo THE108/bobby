@@ -1,8 +1,8 @@
 TODO:
-  - Add config parsing
+  + Add config parsing
   - Add personal notifications for slack
-  - Separate duty and timelogs messengers
   - Use previous working day for timelogs
-    1. based on day of week
-    2. based on google calender
+    - based on day of week
+    - based on google calender
+  - Separate duty and timelogs messengers
   - Add opsjenie support

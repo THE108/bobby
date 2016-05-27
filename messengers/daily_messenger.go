@@ -22,7 +22,7 @@ const (
 )
 
 type ISlackClient interface {
-	SendMessage(string, string) error
+	SendMessage(channelID, text string) error
 }
 
 type IPagerDutyClient interface {
@@ -66,11 +66,13 @@ func (this *DailyMessenger) Run() {
 		}
 	}
 
+	usersOnDutyJoined := joinDuties(usersOnDuty)
+
 	log.Printf("usersOnDuty: %v\n", usersOnDuty)
 
-	this.notifyUsersOnDuty(now, usersOnDuty)
+	this.notifyUsersOnDuty(now, usersOnDutyJoined)
 
-	this.render(&text, filterUsersOnDutyToday(now, usersOnDuty), usersTimeLogs, now)
+	this.render(&text, filterUsersOnDutyToday(now, usersOnDutyJoined), usersTimeLogs, now)
 
 	log.Println(text.String())
 
@@ -94,13 +96,15 @@ func filterUsersOnDutyToday(now time.Time, usersOnDuty []pagerduty.UserOnDuty) [
 	return result
 }
 
-func joinDutiesByUserName(usersOnDuty []pagerduty.UserOnDuty) map[string][]pagerduty.UserOnDuty {
+func joinDuties(usersOnDuty []pagerduty.UserOnDuty) (usersOnDutyJoined []pagerduty.UserOnDuty) {
 	if len(usersOnDuty) == 0 {
-		return nil
+		return
 	}
 
+	log.Printf("joinDutiesByUserName.usersOnDuty: %v+\n", usersOnDuty)
+
 	// join overlapping intervals
-	usersOnDutyJoined := append(make([]pagerduty.UserOnDuty, 0, len(usersOnDuty)), usersOnDuty[0])
+	usersOnDutyJoined = append(make([]pagerduty.UserOnDuty, 0, len(usersOnDuty)), usersOnDuty[0])
 	for i := 1; i < len(usersOnDuty); i++ {
 		prevIndex := len(usersOnDutyJoined) - 1
 		if usersOnDutyJoined[prevIndex].Name == usersOnDuty[i].Name {
@@ -110,9 +114,14 @@ func joinDutiesByUserName(usersOnDuty []pagerduty.UserOnDuty) map[string][]pager
 		usersOnDutyJoined = append(usersOnDutyJoined, usersOnDuty[i])
 	}
 
+	log.Printf("joinDutiesByUserName.usersOnDutyJoined: %+v\n", usersOnDutyJoined)
+	return
+}
+
+func joinDutiesByUserName(usersOnDuty []pagerduty.UserOnDuty) map[string][]pagerduty.UserOnDuty {
 	// group users on duty by name to avoid notifying users twice
-	usersOnDutyByName := make(map[string][]pagerduty.UserOnDuty, len(usersOnDutyJoined))
-	for _, userOnDuty := range usersOnDutyJoined {
+	usersOnDutyByName := make(map[string][]pagerduty.UserOnDuty, len(usersOnDuty))
+	for _, userOnDuty := range usersOnDuty {
 		usersOnDutyByName[userOnDuty.Name] = append(usersOnDutyByName[userOnDuty.Name], userOnDuty)
 	}
 
@@ -120,7 +129,15 @@ func joinDutiesByUserName(usersOnDuty []pagerduty.UserOnDuty) map[string][]pager
 }
 
 func (this *DailyMessenger) notifyUsersOnDuty(now time.Time, usersOnDuty []pagerduty.UserOnDuty) {
+	usersByName := make(map[string]config.User, len(this.Config.TimelogsCommand.Team))
+	for _, user := range this.Config.TimelogsCommand.Team {
+		usersByName[user.Name] = user
+	}
+
 	usersOnDutyByName := joinDutiesByUserName(usersOnDuty)
+
+	log.Printf("notifyUsersOnDuty.usersOnDutyByName: %+v\n", usersOnDutyByName)
+
 	for name, duties := range usersOnDutyByName {
 		msgs := make([]string, 0, len(duties))
 		for _, duty := range duties {
@@ -131,20 +148,52 @@ func (this *DailyMessenger) notifyUsersOnDuty(now time.Time, usersOnDuty []pager
 				duty.Start.Format(timeFormatText),
 				duty.End.Format(timeFormatText)))
 		}
-		log.Printf("Hello, %s! You are on duty %s. Enjoy!\n", name, strings.Join(msgs, " and "))
+
+		user, found := usersByName[name]
+		if !found {
+			continue
+		}
+
+		if len(msgs) == 0 {
+			continue
+		}
+
+		message := fmt.Sprintf("Hello, %s! You are on duty %s. Enjoy!", user.Name, strings.Join(msgs, " and "))
+		log.Printf("message: %q", message)
+		if err := this.SlackClient.SendMessage(toSlackUserLogin(user.SlackLogin), message); err != nil {
+			log.Printf("send private message error: %s", err.Error())
+		}
 	}
+}
+
+func toSlackUserLogin(name string) string {
+	if strings.HasPrefix(name, "@") {
+		return name
+	}
+	return "@" + name
 }
 
 func (this *DailyMessenger) getUsersTimeLogs(now time.Time, resultChan chan<- interface{}) {
 	log.Printf("start time log\n")
 	from, to := utils.GetPreviousDateRange(now)
-	usersLogs, err := this.JiraClient.GetUsersLoggedLessThenMin(this.Config.TimelogsCommand.Team, from, to,
+
+	userNameToJiraLoginMap := make(map[string]string, len(this.Config.TimelogsCommand.Team))
+	for _, user := range this.Config.TimelogsCommand.Team {
+		userNameToJiraLoginMap[user.JiraLogin] = user.Name
+	}
+
+	log.Printf("userNameToJiraLoginMap: %+v\n", userNameToJiraLoginMap)
+
+	usersLogs, err := this.JiraClient.GetUsersLoggedLessThenMin(userNameToJiraLoginMap, from, to,
 		this.Config.TimelogsCommand.MinimumTimeSpent)
 	log.Printf("time log\n")
 	if err != nil {
 		resultChan <- err
 		return
 	}
+
+	log.Printf("usersLogs: %+v\n", usersLogs)
+
 	resultChan <- usersLogs
 }
 
