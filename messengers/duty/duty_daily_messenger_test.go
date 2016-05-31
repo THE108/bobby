@@ -1,4 +1,4 @@
-package messengers
+package duty
 
 import (
 	"testing"
@@ -47,7 +47,7 @@ func (suite *DailyMessengerTestSuite) TestJoinDutiesByUserName(c *C) {
 		},
 	}
 
-	result := joinDutiesByUserName(usersOnDuty)
+	result := joinDutiesByUserName(joinDuties(usersOnDuty))
 
 	c.Assert(len(result), Equals, 3)
 	duties, found := result["User1"]
@@ -99,7 +99,7 @@ func (suite *DailyMessengerTestSuite) TestJoinDutiesByUserName_Overlapped(c *C) 
 		},
 	}
 
-	result := joinDutiesByUserName(usersOnDuty)
+	result := joinDutiesByUserName(joinDuties(usersOnDuty))
 
 	c.Assert(len(result), Equals, 2)
 	duties, found := result["User1"]

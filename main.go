@@ -11,7 +11,8 @@ import (
 	"bobby/config"
 	"bobby/cron"
 	"bobby/jira"
-	"bobby/messengers"
+	"bobby/messengers/duty"
+	"bobby/messengers/timelogs"
 	"bobby/pagerduty"
 	"bobby/processors"
 	"bobby/slack"
@@ -76,6 +77,25 @@ func run(addr string, mux *http.ServeMux) {
 	}
 }
 
+func runDailyMessangers(cfg *config.Config, slackClient *slack.Client,
+	pagerdutyClient processors.IPagerDutyClient, jiraClient processors.IJiraClient) {
+	dutyDailyMessenger := &duty.DutyDailyMessenger{
+		Config:          cfg,
+		SlackClient:     slackClient,
+		PagerdutyClient: pagerdutyClient,
+	}
+	cron.AddJob(cron.EveryWorkingDayAt(cfg.DutyCommand.DailyMessageTime), dutyDailyMessenger)
+
+	timelogsDailyMessenger := &timelogs.TimelogsDailyMessenger{
+		Config:      cfg,
+		SlackClient: slackClient,
+		JiraClient:  jiraClient,
+	}
+	cron.AddJob(cron.EveryWorkingDayAt(cfg.TimelogsCommand.DailyMessageTime), timelogsDailyMessenger)
+
+	go cron.Run()
+}
+
 func main() {
 	var configFilename string
 	flag.StringVar(&configFilename, "config", "conf.yaml", "config file (yaml)")
@@ -93,21 +113,7 @@ func main() {
 	jiraClient := jira.NewClient(cfg.Jira.Token)
 	pagerdutyClient := pagerduty.NewClient(cfg.Pagerduty.Subdomain, cfg.Pagerduty.Token, cfg.Pagerduty.Timezone)
 
-	dm := &messengers.DailyMessenger{
-		Config:          cfg,
-		SlackClient:     slackClient,
-		JiraClient:      jiraClient,
-		PagerdutyClient: pagerdutyClient,
-	}
-
-	dailyMessageSendTime, err := cron.ParseDayTime(cfg.SendDailyMessageTime)
-	if err != nil {
-		log.Printf("Error parse daily message send date time: %s", err.Error())
-		return
-	}
-
-	cron.AddJob(cron.EveryWorkingDayAt(dailyMessageSendTime), dm)
-	go cron.Run()
+	runDailyMessangers(cfg, slackClient, pagerdutyClient, jiraClient)
 
 	mux := http.NewServeMux()
 	commandProcessManager := initCommandProcessManager(cfg, slackClient, cacheManager, pagerdutyClient, jiraClient)

@@ -15,11 +15,12 @@ duty_command:
   schedule_ids:
     - <your schedule id>
   cache_ttl: 5m
+  daily_message_time: 09:47
 timelogs_command:
   token: <slack auth token for timelogs command>
   minimum_time_logged: 6h
   cache_ttl: 5m
+  daily_message_time: 09:47
   team:
     "jonny.walker":    "Johny Walker"
     "john.doe":        "John Doe"
-send_daily_message_time: 09:47

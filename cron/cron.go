@@ -9,7 +9,7 @@ const (
 )
 
 type ICronJob interface {
-	Run()
+	Run(now time.Time)
 }
 
 type IChecker interface {
@@ -69,7 +69,7 @@ func (this *Cron) run() {
 	now := time.Now()
 	for i, item := range this.jobs {
 		if item.checker.Check(now) && item.checkLastExecTime(now) {
-			go item.job.Run()
+			go item.job.Run(now)
 			this.jobs[i].lastExecTime = now
 		}
 	}
