@@ -38,7 +38,7 @@ func (this *CommandProcessManager) AddCommandProcessor(commandName string, proce
 func (this *CommandProcessManager) ProcessCommand(command *SlackCommand) (result CommandResult, err error) {
 	commandName := strings.Trim(command.Command, "/ ")
 	if len(commandName) == 0 {
-		commandName = "help"
+		return result, fmt.Errorf("empty command")
 	}
 
 	this.lock.RLock()
