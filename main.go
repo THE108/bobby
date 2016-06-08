@@ -101,7 +101,6 @@ func main() {
 	flag.StringVar(&configFilename, "config", "conf.yaml", "config file (yaml)")
 	flag.Parse()
 
-	//cfg := config.GetDefaultConfig()
 	cfg, err := config.ParseConfig(configFilename)
 	if err != nil {
 		log.Printf("Error parse config file %q: %s", configFilename, err.Error())

@@ -4,5 +4,5 @@ TODO:
   - Use previous working day for timelogs
     + based on day of week
     - based on google calender
-  - Separate duty and timelogs messengers
+  + Separate duty and timelogs messengers
   - Add opsjenie support
