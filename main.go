@@ -25,7 +25,7 @@ const (
 func initCommandProcessManager(cfg *config.Config, slackClient processors.ISlackPostponedClient, cache processors.ICache,
 	pagerdutyClient processors.IPagerDutyClient, jiraClient processors.IJiraClient) *processors.CommandProcessManager {
 	commandProcessManager := processors.NewCommandProcessManager()
-	commandProcessManager.AddCommandProcessor("duty", &processors.PostponedCommandProcessor{
+	commandProcessManager.AddCommandProcessor(cfg.DutyCommand.Name, &processors.PostponedCommandProcessor{
 		Token:         cfg.DutyCommand.Token,
 		SlackClient:   slackClient,
 		Cache:         cache,
@@ -41,7 +41,7 @@ func initCommandProcessManager(cfg *config.Config, slackClient processors.ISlack
 		userNameToJiraLoginMap[user.Name] = user.JiraLogin
 	}
 
-	commandProcessManager.AddCommandProcessor("timelogs", &processors.PostponedCommandProcessor{
+	commandProcessManager.AddCommandProcessor(cfg.TimelogsCommand.Name, &processors.PostponedCommandProcessor{
 		Token:         cfg.TimelogsCommand.Token,
 		SlackClient:   slackClient,
 		Cache:         cache,

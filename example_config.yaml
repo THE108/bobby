@@ -11,12 +11,14 @@ pagerduty:
   subdomain: <your subdomain on pagerduty>
   timezone: Moscow
 duty-command:
+  name: duty
   token: <slack auth token for duty command>
   schedule-ids:
     - <your schedule id>
   cache-ttl: 5m
   daily-message-time: 09:47
 timelogs-command:
+  name: timelogs
   token: <slack auth token for timelogs command>
   minimum-time-logged: 6h
   cache-ttl: 5m

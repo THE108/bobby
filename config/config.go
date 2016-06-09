@@ -29,6 +29,7 @@ type Config struct {
 		Timezone  string `yaml:"timezone"`
 	} `yaml:"pagerduty"`
 	DutyCommand struct {
+		Name                   string        `yaml:"name"`
 		Token                  string        `yaml:"token"`
 		ScheduleIDs            []string      `yaml:"schedule-ids"`
 		CacheTTL               time.Duration `yaml:"cache-ttl"`
@@ -36,6 +37,7 @@ type Config struct {
 		DailyMessageTime       utils.DayTime `yaml:"-"`
 	} `yaml:"duty-command"`
 	TimelogsCommand struct {
+		Name                   string        `yaml:"name"`
 		Token                  string        `yaml:"token"`
 		Team                   []User        `yaml:"team"`
 		MinimumTimeSpent       time.Duration `yaml:"minimum-time-logged"`
@@ -89,6 +91,10 @@ func validate(cfg *Config) error {
 		return fmt.Errorf("duty daily message time must be non empty")
 	}
 
+	if len(cfg.DutyCommand.Name) == 0 {
+		return fmt.Errorf("empty duty command name")
+	}
+
 	dutyDailyMessageTime, err := utils.ParseDayTime(cfg.DutyCommand.DailyMessageTimeString)
 	if err != nil {
 		return fmt.Errorf("error parse duty daily message date time: %s", err.Error())
@@ -100,6 +106,10 @@ func validate(cfg *Config) error {
 		return fmt.Errorf("error parse timelogs daily message date time: %s", err.Error())
 	}
 	cfg.TimelogsCommand.DailyMessageTime = timlogsDailyMessageTime
+
+	if len(cfg.TimelogsCommand.Name) == 0 {
+		return fmt.Errorf("empty time logs command name")
+	}
 
 	if len(cfg.TimelogsCommand.Token) == 0 {
 		return fmt.Errorf("timelogs command auth token must be non empty")
