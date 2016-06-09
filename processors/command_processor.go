@@ -53,7 +53,12 @@ func (this *CommandProcessManager) ProcessCommand(command *SlackCommand) (result
 		return result, fmt.Errorf("validation failed: invalid token %q", command.Token)
 	}
 
-	args := strings.Split(command.Text, " ")
+	var args []string
+	command.Text = strings.Trim(command.Text, "/ ")
+	if len(command.Text) != 0 {
+		args = strings.Split(command.Text, " ")
+	}
+
 	log.Printf("args: %+v len(%d)\n", args, len(args))
 
 	return commandProcessor.ProcessCommand(command, time.Now(), args), nil
