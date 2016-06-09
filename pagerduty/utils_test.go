@@ -1,10 +1,8 @@
-package duty
+package pagerduty
 
 import (
 	"testing"
 	"time"
-
-	"bobby/pagerduty"
 
 	. "gopkg.in/check.v1"
 )
@@ -19,7 +17,7 @@ type DailyMessengerTestSuite struct{}
 var _ = Suite(&DailyMessengerTestSuite{})
 
 func (suite *DailyMessengerTestSuite) TestJoinDutiesByUserName(c *C) {
-	usersOnDuty := []pagerduty.UserOnDuty{
+	usersOnDuty := []UserOnDuty{
 		{
 			Name:  "User1",
 			Start: time.Date(2016, time.May, 17, 0, 0, 0, 0, time.Local),
@@ -47,7 +45,7 @@ func (suite *DailyMessengerTestSuite) TestJoinDutiesByUserName(c *C) {
 		},
 	}
 
-	result := joinDutiesByUserName(joinDuties(usersOnDuty))
+	result := JoinDutiesByUserName(JoinDuties(usersOnDuty))
 
 	c.Assert(len(result), Equals, 3)
 	duties, found := result["User1"]
@@ -71,7 +69,7 @@ func (suite *DailyMessengerTestSuite) TestJoinDutiesByUserName(c *C) {
 }
 
 func (suite *DailyMessengerTestSuite) TestJoinDutiesByUserName_Overlapped(c *C) {
-	usersOnDuty := []pagerduty.UserOnDuty{
+	usersOnDuty := []UserOnDuty{
 		{
 			Name:  "User1",
 			Start: time.Date(2016, time.May, 17, 0, 0, 0, 0, time.Local),
@@ -99,7 +97,7 @@ func (suite *DailyMessengerTestSuite) TestJoinDutiesByUserName_Overlapped(c *C) 
 		},
 	}
 
-	result := joinDutiesByUserName(joinDuties(usersOnDuty))
+	result := JoinDutiesByUserName(JoinDuties(usersOnDuty))
 
 	c.Assert(len(result), Equals, 2)
 	duties, found := result["User1"]

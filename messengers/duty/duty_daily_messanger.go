@@ -45,13 +45,13 @@ func (this *DutyDailyMessenger) Run(now time.Time) {
 		return
 	}
 
-	usersOnDutyJoined := joinDuties(usersOnDuty)
+	usersOnDutyJoined := pagerduty.JoinDuties(usersOnDuty)
 
 	log.Printf("usersOnDuty: %v\n", usersOnDuty)
 
 	this.notifyUsersOnDuty(now, usersOnDutyJoined)
 
-	text := this.render(now, filterUsersOnDutyToday(now, usersOnDutyJoined))
+	text := this.render(now, pagerduty.FilterUsersOnDutyToday(now, usersOnDutyJoined))
 	if err := this.SlackClient.SendMessage(this.Config.Slack.Channel, text); err != nil {
 		log.Printf("Error send slack message: %s", err)
 	}
@@ -63,7 +63,7 @@ func (this *DutyDailyMessenger) notifyUsersOnDuty(now time.Time, usersOnDuty []p
 		usersByName[user.Name] = user
 	}
 
-	usersOnDutyByName := joinDutiesByUserName(usersOnDuty)
+	usersOnDutyByName := pagerduty.JoinDutiesByUserName(usersOnDuty)
 
 	log.Printf("notifyUsersOnDuty.usersOnDutyByName: %+v\n", usersOnDutyByName)
 
@@ -122,51 +122,4 @@ func (this *DutyDailyMessenger) render(now time.Time, usersOnDuty []pagerduty.Us
 		utils.LogIfErr(buf.WriteString("\n"))
 	}
 	return buf.String()
-}
-
-func filterUsersOnDutyToday(now time.Time, usersOnDuty []pagerduty.UserOnDuty) []pagerduty.UserOnDuty {
-	result := make([]pagerduty.UserOnDuty, 0, len(usersOnDuty))
-	today := now.Day()
-	for _, item := range usersOnDuty {
-		if item.End.Before(now) {
-			continue
-		}
-		if item.Start.Day() != today {
-			continue
-		}
-		result = append(result, item)
-	}
-	return result
-}
-
-func joinDuties(usersOnDuty []pagerduty.UserOnDuty) (usersOnDutyJoined []pagerduty.UserOnDuty) {
-	if len(usersOnDuty) == 0 {
-		return
-	}
-
-	log.Printf("joinDutiesByUserName.usersOnDuty: %v+\n", usersOnDuty)
-
-	// join overlapping intervals
-	usersOnDutyJoined = append(make([]pagerduty.UserOnDuty, 0, len(usersOnDuty)), usersOnDuty[0])
-	for i := 1; i < len(usersOnDuty); i++ {
-		prevIndex := len(usersOnDutyJoined) - 1
-		if usersOnDutyJoined[prevIndex].Name == usersOnDuty[i].Name {
-			usersOnDutyJoined[prevIndex].End = usersOnDuty[i].End
-			continue
-		}
-		usersOnDutyJoined = append(usersOnDutyJoined, usersOnDuty[i])
-	}
-
-	log.Printf("joinDutiesByUserName.usersOnDutyJoined: %+v\n", usersOnDutyJoined)
-	return
-}
-
-func joinDutiesByUserName(usersOnDuty []pagerduty.UserOnDuty) map[string][]pagerduty.UserOnDuty {
-	// group users on duty by name to avoid notifying users twice
-	usersOnDutyByName := make(map[string][]pagerduty.UserOnDuty, len(usersOnDuty))
-	for _, userOnDuty := range usersOnDuty {
-		usersOnDutyByName[userOnDuty.Name] = append(usersOnDutyByName[userOnDuty.Name], userOnDuty)
-	}
-
-	return usersOnDutyByName
 }
