@@ -54,7 +54,6 @@ type Client struct {
 func NewClient(token string) *Client {
 	return &Client{
 		token: token,
-		cli:   &http.Client{},
 	}
 }
 
@@ -87,7 +86,7 @@ func (this *Client) GetTimesheetForUser(user string, from, to time.Time) (*Times
 
 	req.Header.Set("Authorization", "Basic "+this.token)
 
-	resp, err := this.cli.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
 	}

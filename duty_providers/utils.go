@@ -1,18 +1,30 @@
-package pagerduty
+package duty_providers
 
 import (
-	"log"
 	"time"
 )
 
 func FilterUsersOnDutyToday(now time.Time, usersOnDuty []UserOnDuty) []UserOnDuty {
 	result := make([]UserOnDuty, 0, len(usersOnDuty))
 	today := now.Day()
+	tomorrow := now.Add(24 * time.Hour).Day()
 	for _, item := range usersOnDuty {
 		if item.End.Before(now) {
 			continue
 		}
-		if item.Start.Day() != today {
+		day := item.Start.Day()
+		if day != today && day != tomorrow {
+			continue
+		}
+		result = append(result, item)
+	}
+	return result
+}
+
+func FilterUsersOnDutyByDate(now, limit time.Time, usersOnDuty []UserOnDuty) []UserOnDuty {
+	result := make([]UserOnDuty, 0, len(usersOnDuty))
+	for _, item := range usersOnDuty {
+		if item.End.Before(now) || item.Start.After(limit) {
 			continue
 		}
 		result = append(result, item)
@@ -25,7 +37,7 @@ func JoinDuties(usersOnDuty []UserOnDuty) (usersOnDutyJoined []UserOnDuty) {
 		return
 	}
 
-	log.Printf("joinDutiesByUserName.usersOnDuty: %v+\n", usersOnDuty)
+	//log.Printf("joinDutiesByUserName.usersOnDuty: %v+\n", usersOnDuty)
 
 	// join overlapping intervals
 	usersOnDutyJoined = append(make([]UserOnDuty, 0, len(usersOnDuty)), usersOnDuty[0])
@@ -38,7 +50,7 @@ func JoinDuties(usersOnDuty []UserOnDuty) (usersOnDutyJoined []UserOnDuty) {
 		usersOnDutyJoined = append(usersOnDutyJoined, usersOnDuty[i])
 	}
 
-	log.Printf("joinDutiesByUserName.usersOnDutyJoined: %+v\n", usersOnDutyJoined)
+	//log.Printf("joinDutiesByUserName.usersOnDutyJoined: %+v\n", usersOnDutyJoined)
 	return
 }
 

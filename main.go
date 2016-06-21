@@ -10,10 +10,10 @@ import (
 	"bobby/cache"
 	"bobby/config"
 	"bobby/cron"
+	"bobby/duty_providers"
 	"bobby/jira"
 	"bobby/messengers/duty"
 	"bobby/messengers/timelogs"
-	"bobby/pagerduty"
 	"bobby/processors"
 	"bobby/slack"
 )
@@ -23,7 +23,7 @@ const (
 )
 
 func initCommandProcessManager(cfg *config.Config, slackClient processors.ISlackPostponedClient, cache processors.ICache,
-	pagerdutyClient processors.IPagerDutyClient, jiraClient processors.IJiraClient) *processors.CommandProcessManager {
+	dutyProvider processors.IDutyProvider, jiraClient processors.IJiraClient) *processors.CommandProcessManager {
 	commandProcessManager := processors.NewCommandProcessManager()
 	commandProcessManager.AddCommandProcessor(cfg.DutyCommand.Name, &processors.PostponedCommandProcessor{
 		Token:         cfg.DutyCommand.Token,
@@ -31,8 +31,8 @@ func initCommandProcessManager(cfg *config.Config, slackClient processors.ISlack
 		Cache:         cache,
 		CacheDuration: cfg.DutyCommand.CacheTTL,
 		Processor: &processors.DutyCommandProcessor{
-			PagerdutyClient: pagerdutyClient,
-			ScheduleIDs:     cfg.DutyCommand.ScheduleIDs,
+			DutyProvider: dutyProvider,
+			ScheduleIDs:  cfg.DutyCommand.ScheduleIDs,
 		},
 	})
 
@@ -78,11 +78,11 @@ func run(addr string, mux *http.ServeMux) {
 }
 
 func runDailyMessangers(cfg *config.Config, slackClient *slack.Client,
-	pagerdutyClient processors.IPagerDutyClient, jiraClient processors.IJiraClient) {
+	dutyProvider processors.IDutyProvider, jiraClient processors.IJiraClient) {
 	dutyDailyMessenger := &duty.DutyDailyMessenger{
-		Config:          cfg,
-		SlackClient:     slackClient,
-		PagerdutyClient: pagerdutyClient,
+		Config:       cfg,
+		SlackClient:  slackClient,
+		DutyProvider: dutyProvider,
 	}
 	cron.AddJob(cron.EveryWorkingDayAt(cfg.DutyCommand.DailyMessageTime), dutyDailyMessenger)
 
@@ -110,12 +110,17 @@ func main() {
 	slackClient := slack.NewClient(cfg.Slack.Token)
 	cacheManager := cache.NewCache(DefaultCacheSize)
 	jiraClient := jira.NewClient(cfg.Jira.Token)
-	pagerdutyClient := pagerduty.NewClient(cfg.Pagerduty.Subdomain, cfg.Pagerduty.Token, cfg.Pagerduty.Timezone)
 
-	runDailyMessangers(cfg, slackClient, pagerdutyClient, jiraClient)
+	// TODO: add switch between pagerduty and opsgenie
+	// dutyProvider := duty_providers.NewPagerdutyClient(cfg.Pagerduty.Subdomain, cfg.Pagerduty.Token,
+	//	cfg.Pagerduty.Timezone)
+
+	dutyProvider := duty_providers.NewOpsgenieClient(cfg.Opsgenie.Token)
+
+	runDailyMessangers(cfg, slackClient, dutyProvider, jiraClient)
 
 	mux := http.NewServeMux()
-	commandProcessManager := initCommandProcessManager(cfg, slackClient, cacheManager, pagerdutyClient, jiraClient)
+	commandProcessManager := initCommandProcessManager(cfg, slackClient, cacheManager, dutyProvider, jiraClient)
 	initHandlers(mux, commandProcessManager)
 	run(net.JoinHostPort(cfg.Main.Host, cfg.Main.Port), mux)
 }

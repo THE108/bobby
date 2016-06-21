@@ -28,6 +28,9 @@ type Config struct {
 		Subdomain string `yaml:"subdomain"`
 		Timezone  string `yaml:"timezone"`
 	} `yaml:"pagerduty"`
+	Opsgenie struct {
+		Token string `yaml:"token"`
+	} `yaml:"opsgenie"`
 	DutyCommand struct {
 		Name                   string        `yaml:"name"`
 		Token                  string        `yaml:"token"`
@@ -93,6 +96,10 @@ func validate(cfg *Config) error {
 
 	if len(cfg.DutyCommand.Name) == 0 {
 		return fmt.Errorf("empty duty command name")
+	}
+
+	if len(cfg.Opsgenie.Token) == 0 {
+		return fmt.Errorf("opsgenie token must be non empty")
 	}
 
 	dutyDailyMessageTime, err := utils.ParseDayTime(cfg.DutyCommand.DailyMessageTimeString)

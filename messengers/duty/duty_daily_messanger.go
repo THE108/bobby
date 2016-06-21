@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"bobby/config"
-	"bobby/pagerduty"
+	"bobby/duty_providers"
 	"bobby/utils"
 )
 
@@ -22,19 +22,20 @@ type ISlackClient interface {
 	SendMessage(channelID, text string) error
 }
 
-type IPagerDutyClient interface {
-	GetUsersOnDutyForDate(from, to time.Time, scheduleIDs ...string) ([]pagerduty.UserOnDuty, error)
+type IDutyProvider interface {
+	GetUsersOnDutyForDate(from, to time.Time, scheduleIDs ...string) ([]duty_providers.UserOnDuty, error)
 }
 
 type DutyDailyMessenger struct {
-	Config          *config.Config
-	SlackClient     ISlackClient
-	PagerdutyClient IPagerDutyClient
+	Config       *config.Config
+	SlackClient  ISlackClient
+	DutyProvider IDutyProvider
 }
 
 func (this *DutyDailyMessenger) Run(now time.Time) {
-	from, to := now, now.Add(48*time.Hour)
-	usersOnDuty, err := this.PagerdutyClient.GetUsersOnDutyForDate(from, to, this.Config.DutyCommand.ScheduleIDs...)
+	dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
+	from, to := dayStart, dayStart.Add(75*time.Hour)
+	usersOnDuty, err := this.DutyProvider.GetUsersOnDutyForDate(from, to, this.Config.DutyCommand.ScheduleIDs...)
 	if err != nil {
 		log.Printf("error get users on duty: %s", err.Error())
 		return
@@ -45,25 +46,47 @@ func (this *DutyDailyMessenger) Run(now time.Time) {
 		return
 	}
 
-	usersOnDutyJoined := pagerduty.JoinDuties(usersOnDuty)
-
 	log.Printf("usersOnDuty: %v\n", usersOnDuty)
 
-	this.notifyUsersOnDuty(now, usersOnDutyJoined)
+	usersOnDutyJoined := duty_providers.JoinDuties(usersOnDuty)
+	//usersOnDutyJoined = duty_providers.FilterUsersOnDutyByDate(now, now.Add(51 * time.Hour), usersOnDutyJoined)
 
-	text := this.render(now, pagerduty.FilterUsersOnDutyToday(now, usersOnDutyJoined))
-	if err := this.SlackClient.SendMessage(this.Config.Slack.Channel, text); err != nil {
-		log.Printf("Error send slack message: %s", err)
+	log.Printf("usersOnDutyJoined: %v\n", usersOnDutyJoined)
+
+	userOnDutyNow := usersOnDutyJoined[0]
+	usersOnDutyNext := usersOnDutyJoined[1:]
+	for {
+		log.Printf("userOnDutyNow: %+v %v | %v usersOnDutyNext: %+v\n", userOnDutyNow, userOnDutyNow.Start.Before(now),
+			userOnDutyNow.End.After(now), usersOnDutyNext)
+		if userOnDutyNow.Start.Before(now) && userOnDutyNow.End.After(now) {
+			break
+		}
+
+		if len(usersOnDutyNext) == 0 {
+			break
+		}
+
+		userOnDutyNow = usersOnDutyNext[0]
+		usersOnDutyNext = usersOnDutyNext[1:]
 	}
+
+	this.notifyUsersOnDuty(now, usersOnDutyNext)
+
+	text := this.render(now, userOnDutyNow, usersOnDutyNext)
+	log.Printf("text: %s\n", text)
+
+	//if err := this.SlackClient.SendMessage(this.Config.Slack.Channel, text); err != nil {
+	//	log.Printf("Error send slack message: %s", err)
+	//}
 }
 
-func (this *DutyDailyMessenger) notifyUsersOnDuty(now time.Time, usersOnDuty []pagerduty.UserOnDuty) {
+func (this *DutyDailyMessenger) notifyUsersOnDuty(now time.Time, usersOnDuty []duty_providers.UserOnDuty) {
 	usersByName := make(map[string]config.User, len(this.Config.TimelogsCommand.Team))
 	for _, user := range this.Config.TimelogsCommand.Team {
 		usersByName[user.Name] = user
 	}
 
-	usersOnDutyByName := pagerduty.JoinDutiesByUserName(usersOnDuty)
+	usersOnDutyByName := duty_providers.JoinDutiesByUserName(usersOnDuty)
 
 	log.Printf("notifyUsersOnDuty.usersOnDutyByName: %+v\n", usersOnDutyByName)
 
@@ -80,16 +103,13 @@ func (this *DutyDailyMessenger) notifyUsersOnDuty(now time.Time, usersOnDuty []p
 			continue
 		}
 
-		go this.notifyUserOnDuty(user.SlackLogin, message)
+		//go this.notifyUserOnDuty(user.SlackLogin, message)
 	}
 }
 
-func renderPrivateMessage(now time.Time, username string, duties []pagerduty.UserOnDuty) string {
+func renderPrivateMessage(now time.Time, username string, duties []duty_providers.UserOnDuty) string {
 	msgs := make([]string, 0, len(duties))
 	for _, duty := range duties {
-		if duty.End.Before(now) {
-			continue
-		}
 		msgs = append(msgs, fmt.Sprintf("from %s to %s",
 			duty.Start.Format(timeFormatText),
 			duty.End.Format(timeFormatText)))
@@ -108,11 +128,18 @@ func (this *DutyDailyMessenger) notifyUserOnDuty(name, message string) {
 	}
 }
 
-func (this *DutyDailyMessenger) render(now time.Time, usersOnDuty []pagerduty.UserOnDuty) string {
+func (this *DutyDailyMessenger) render(now time.Time, userOnDutyNow duty_providers.UserOnDuty,
+	usersOnDutyNext []duty_providers.UserOnDuty) string {
 	var buf bytes.Buffer
 	buf.Grow(aproxMessageLength)
-	utils.LogIfErr(buf.WriteString(":phone: On duty:\n"))
-	for _, entrie := range usersOnDuty {
+
+	utils.LogIfErr(buf.WriteString(":phone: On duty:\nNow:\n\t"))
+	utils.LogIfErr(buf.WriteString(userOnDutyNow.Name))
+	utils.LogIfErr(buf.WriteString(" till "))
+	utils.LogIfErr(buf.WriteString(userOnDutyNow.End.Format(timeFormatText)))
+	utils.LogIfErr(buf.WriteString("\nNext:\n"))
+
+	for _, entrie := range usersOnDutyNext {
 		utils.LogIfErr(buf.WriteString("\t"))
 		utils.LogIfErr(buf.WriteString(entrie.Name))
 		utils.LogIfErr(buf.WriteString(" from "))

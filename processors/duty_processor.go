@@ -4,19 +4,19 @@ import (
 	"fmt"
 	"time"
 
-	"bobby/pagerduty"
+	"bobby/duty_providers"
 	"bobby/utils"
 	"strings"
 )
 
-type IPagerDutyClient interface {
-	GetUsersOnDutyForDate(from, to time.Time, scheduleIDs ...string) ([]pagerduty.UserOnDuty, error)
+type IDutyProvider interface {
+	GetUsersOnDutyForDate(from, to time.Time, scheduleIDs ...string) ([]duty_providers.UserOnDuty, error)
 }
 
 type DutyCommandProcessor struct {
-	PagerdutyClient IPagerDutyClient
-	ScheduleIDs     []string
-	from, to, now   time.Time
+	DutyProvider  IDutyProvider
+	ScheduleIDs   []string
+	from, to, now time.Time
 }
 
 func (this *DutyCommandProcessor) Init(args []string, now time.Time) (err error) {
@@ -36,17 +36,17 @@ func (this *DutyCommandProcessor) GetCacheKey() string {
 }
 
 func (this *DutyCommandProcessor) Process() (string, error) {
-	usersOnDuty, err := this.PagerdutyClient.GetUsersOnDutyForDate(this.from, this.to, this.ScheduleIDs...)
+	usersOnDuty, err := this.DutyProvider.GetUsersOnDutyForDate(this.from, this.to, this.ScheduleIDs...)
 	if err != nil {
 		return "", err
 	}
 
-	usersOnDuty = pagerduty.FilterUsersOnDutyToday(this.now, pagerduty.JoinDuties(usersOnDuty))
+	usersOnDuty = duty_providers.FilterUsersOnDutyToday(this.now, duty_providers.JoinDuties(usersOnDuty))
 
 	return this.renderText(usersOnDuty), nil
 }
 
-func (this *DutyCommandProcessor) renderText(usersOnDuty []pagerduty.UserOnDuty) string {
+func (this *DutyCommandProcessor) renderText(usersOnDuty []duty_providers.UserOnDuty) string {
 	text := fmt.Sprintf("On duty %s:\n", this.from.Format(dateFormatText))
 	for _, item := range usersOnDuty {
 		text += fmt.Sprintf("\t%s from %s to %s\n",

@@ -6,6 +6,8 @@ slack:
   channel: <slack channel>
 jira:
   token: <jira token>
+opsgenie:
+  token: <opsgenie token>
 pagerduty:
   token: <pagerduty token>
   subdomain: <your subdomain on pagerduty>

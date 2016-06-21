@@ -1,4 +1,4 @@
-package pagerduty
+package duty_providers
 
 import (
 	"testing"

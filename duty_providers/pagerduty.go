@@ -1,4 +1,4 @@
-package pagerduty
+package duty_providers
 
 import (
 	"fmt"
@@ -8,34 +8,19 @@ import (
 	pgclient "github.com/danryan/go-pagerduty/pagerduty"
 )
 
-const (
-	dateFormat = "2006-01-02"
-)
-
-type UserOnDuty struct {
-	Name       string
-	Start, End time.Time
-}
-
-type ByStartTime []UserOnDuty
-
-func (a ByStartTime) Len() int           { return len(a) }
-func (a ByStartTime) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a ByStartTime) Less(i, j int) bool { return a[i].Start.Before(a[j].Start) }
-
-type Client struct {
+type PagerdutyClient struct {
 	timezone string
 	pd       *pgclient.Client
 }
 
-func NewClient(subdomain, apiKey, timezone string) *Client {
-	return &Client{
+func NewPagerdutyClient(subdomain, apiKey, timezone string) *PagerdutyClient {
+	return &PagerdutyClient{
 		pd:       pgclient.New(subdomain, apiKey),
 		timezone: timezone,
 	}
 }
 
-func (this *Client) getUsersOnDutyForDate(from, to time.Time, scheduleID string) ([]UserOnDuty, error) {
+func (this *PagerdutyClient) getUsersOnDutyForDate(from, to time.Time, scheduleID string) ([]UserOnDuty, error) {
 	opt := &pgclient.ScheduleEntriesOptions{
 		Since:    from.Format(dateFormat),
 		Until:    to.Format(dateFormat),
@@ -64,7 +49,7 @@ func (this *Client) getUsersOnDutyForDate(from, to time.Time, scheduleID string)
 	return result, nil
 }
 
-func (this *Client) getUsersOnDutyForDateAsync(ch chan<- interface{}, from, to time.Time, scheduleID string) {
+func (this *PagerdutyClient) getUsersOnDutyForDateAsync(ch chan<- interface{}, from, to time.Time, scheduleID string) {
 	entries, err := this.getUsersOnDutyForDate(from, to, scheduleID)
 	if err != nil {
 		ch <- err
@@ -73,7 +58,7 @@ func (this *Client) getUsersOnDutyForDateAsync(ch chan<- interface{}, from, to t
 	ch <- entries
 }
 
-func (this *Client) GetUsersOnDutyForDate(from, to time.Time, scheduleIDs ...string) ([]UserOnDuty, error) {
+func (this *PagerdutyClient) GetUsersOnDutyForDate(from, to time.Time, scheduleIDs ...string) ([]UserOnDuty, error) {
 	ch := make(chan interface{})
 	for _, scheduleID := range scheduleIDs {
 		go this.getUsersOnDutyForDateAsync(ch, from, to, scheduleID)
