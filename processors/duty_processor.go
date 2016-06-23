@@ -1,12 +1,16 @@
 package processors
 
 import (
-	"fmt"
+	"bytes"
+	"strings"
 	"time"
 
 	"bobby/opsgenie"
 	"bobby/utils"
-	"strings"
+)
+
+const (
+	aproxMessageLength = 128
 )
 
 type IDutyProvider interface {
@@ -43,16 +47,28 @@ func (this *DutyCommandProcessor) Process() (string, error) {
 
 	usersOnDuty = opsgenie.FilterUsersOnDutyToday(this.now, opsgenie.JoinDuties(usersOnDuty))
 
-	return this.renderText(usersOnDuty), nil
+	currentUserOnDuty, nextUsersOnDuty := opsgenie.SplitCurrentAndNextUsersOnDuty(this.now, usersOnDuty)
+
+	return this.renderText(currentUserOnDuty, nextUsersOnDuty), nil
 }
 
-func (this *DutyCommandProcessor) renderText(usersOnDuty []opsgenie.UserOnDuty) string {
-	text := fmt.Sprintf("On duty %s:\n", this.from.Format(dateFormatText))
+func (this *DutyCommandProcessor) renderText(userOnDutyNow opsgenie.UserOnDuty, usersOnDuty []opsgenie.UserOnDuty) string {
+	var buf bytes.Buffer
+	buf.Grow(aproxMessageLength)
+	utils.LogIfErr(buf.WriteString(":phone: On duty:\nNow:\n\t"))
+	utils.LogIfErr(buf.WriteString(userOnDutyNow.Name))
+	utils.LogIfErr(buf.WriteString(" till "))
+	utils.LogIfErr(buf.WriteString(userOnDutyNow.End.Format(timeFormatText)))
+	utils.LogIfErr(buf.WriteString("\nNext:\n"))
+
 	for _, item := range usersOnDuty {
-		text += fmt.Sprintf("\t%s from %s to %s\n",
-			item.Name,
-			item.Start.Format(timeFormatText),
-			item.End.Format(timeFormatText))
+		utils.LogIfErr(buf.WriteString("\t"))
+		utils.LogIfErr(buf.WriteString(item.Name))
+		utils.LogIfErr(buf.WriteString(" from "))
+		utils.LogIfErr(buf.WriteString(item.Start.Format(timeFormatText)))
+		utils.LogIfErr(buf.WriteString(" to "))
+		utils.LogIfErr(buf.WriteString(item.End.Format(timeFormatText)))
+		utils.LogIfErr(buf.WriteString("\n"))
 	}
-	return text
+	return buf.String()
 }

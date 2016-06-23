@@ -65,21 +65,7 @@ func processUsersOnDuty(now time.Time, usersOnDuty []opsgenie.UserOnDuty) (opsge
 
 	log.Printf("usersOnDutyJoined: %v\n", usersOnDutyJoined)
 
-	userOnDutyNow := usersOnDutyJoined[0]
-	usersOnDutyNext := usersOnDutyJoined[1:]
-	for {
-		if userOnDutyNow.Start.Before(now) && userOnDutyNow.End.After(now) {
-			break
-		}
-
-		if len(usersOnDutyNext) == 0 {
-			break
-		}
-
-		userOnDutyNow = usersOnDutyNext[0]
-		usersOnDutyNext = usersOnDutyNext[1:]
-	}
-	return userOnDutyNow, usersOnDutyNext
+	return opsgenie.SplitCurrentAndNextUsersOnDuty(now, usersOnDutyJoined)
 }
 
 func (this *DutyDailyMessenger) notifyUsersOnDuty(now time.Time, usersOnDuty []opsgenie.UserOnDuty) {
