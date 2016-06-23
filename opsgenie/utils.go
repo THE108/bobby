@@ -80,6 +80,10 @@ func JoinDutiesByUserName(usersOnDuty []UserOnDuty) map[string][]UserOnDuty {
 }
 
 func SplitCurrentAndNextUsersOnDuty(now time.Time, usersOnDuty []UserOnDuty) (UserOnDuty, []UserOnDuty) {
+	if len(usersOnDuty) == 0 {
+		return UserOnDuty{}, nil
+	}
+
 	userOnDutyNow := usersOnDuty[0]
 	usersOnDutyNext := usersOnDuty[1:]
 	for {

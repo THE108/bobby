@@ -45,7 +45,7 @@ func (this *DutyCommandProcessor) Process() (string, error) {
 		return "", err
 	}
 
-	usersOnDuty = opsgenie.FilterUsersOnDutyToday(this.now, opsgenie.JoinDuties(usersOnDuty))
+	usersOnDuty = opsgenie.JoinDuties(usersOnDuty)
 
 	currentUserOnDuty, nextUsersOnDuty := opsgenie.SplitCurrentAndNextUsersOnDuty(this.now, usersOnDuty)
 
