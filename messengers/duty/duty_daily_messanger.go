@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"bobby/config"
-	"bobby/duty_providers"
+	"bobby/opsgenie"
 	"bobby/utils"
 )
 
@@ -23,7 +23,7 @@ type ISlackClient interface {
 }
 
 type IDutyProvider interface {
-	GetUsersOnDutyForDate(from, to time.Time, scheduleIDs ...string) ([]duty_providers.UserOnDuty, error)
+	GetUsersOnDutyForDate(from, to time.Time, scheduleID string) ([]opsgenie.UserOnDuty, error)
 }
 
 type DutyDailyMessenger struct {
@@ -35,7 +35,7 @@ type DutyDailyMessenger struct {
 func (this *DutyDailyMessenger) Run(now time.Time) {
 	dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.Local)
 	from, to := dayStart, dayStart.Add(75*time.Hour)
-	usersOnDuty, err := this.DutyProvider.GetUsersOnDutyForDate(from, to, this.Config.DutyCommand.ScheduleIDs...)
+	usersOnDuty, err := this.DutyProvider.GetUsersOnDutyForDate(from, to, this.Config.DutyCommand.ScheduleID)
 	if err != nil {
 		log.Printf("error get users on duty: %s", err.Error())
 		return
@@ -46,18 +46,28 @@ func (this *DutyDailyMessenger) Run(now time.Time) {
 		return
 	}
 
+	userOnDutyNow, usersOnDutyNext := processUsersOnDuty(now, usersOnDuty)
+
+	this.notifyUsersOnDuty(now, usersOnDutyNext)
+
+	text := this.render(now, userOnDutyNow, usersOnDutyNext)
+	log.Printf("text: %s\n", text)
+
+	if err := this.SlackClient.SendMessage(this.Config.Slack.Channel, text); err != nil {
+		log.Printf("Error send slack message: %s", err)
+	}
+}
+
+func processUsersOnDuty(now time.Time, usersOnDuty []opsgenie.UserOnDuty) (opsgenie.UserOnDuty, []opsgenie.UserOnDuty) {
 	log.Printf("usersOnDuty: %v\n", usersOnDuty)
 
-	usersOnDutyJoined := duty_providers.JoinDuties(usersOnDuty)
-	//usersOnDutyJoined = duty_providers.FilterUsersOnDutyByDate(now, now.Add(51 * time.Hour), usersOnDutyJoined)
+	usersOnDutyJoined := opsgenie.JoinDuties(usersOnDuty)
 
 	log.Printf("usersOnDutyJoined: %v\n", usersOnDutyJoined)
 
 	userOnDutyNow := usersOnDutyJoined[0]
 	usersOnDutyNext := usersOnDutyJoined[1:]
 	for {
-		log.Printf("userOnDutyNow: %+v %v | %v usersOnDutyNext: %+v\n", userOnDutyNow, userOnDutyNow.Start.Before(now),
-			userOnDutyNow.End.After(now), usersOnDutyNext)
 		if userOnDutyNow.Start.Before(now) && userOnDutyNow.End.After(now) {
 			break
 		}
@@ -69,24 +79,16 @@ func (this *DutyDailyMessenger) Run(now time.Time) {
 		userOnDutyNow = usersOnDutyNext[0]
 		usersOnDutyNext = usersOnDutyNext[1:]
 	}
-
-	this.notifyUsersOnDuty(now, usersOnDutyNext)
-
-	text := this.render(now, userOnDutyNow, usersOnDutyNext)
-	log.Printf("text: %s\n", text)
-
-	//if err := this.SlackClient.SendMessage(this.Config.Slack.Channel, text); err != nil {
-	//	log.Printf("Error send slack message: %s", err)
-	//}
+	return userOnDutyNow, usersOnDutyNext
 }
 
-func (this *DutyDailyMessenger) notifyUsersOnDuty(now time.Time, usersOnDuty []duty_providers.UserOnDuty) {
+func (this *DutyDailyMessenger) notifyUsersOnDuty(now time.Time, usersOnDuty []opsgenie.UserOnDuty) {
 	usersByName := make(map[string]config.User, len(this.Config.TimelogsCommand.Team))
 	for _, user := range this.Config.TimelogsCommand.Team {
 		usersByName[user.Name] = user
 	}
 
-	usersOnDutyByName := duty_providers.JoinDutiesByUserName(usersOnDuty)
+	usersOnDutyByName := opsgenie.JoinDutiesByUserName(usersOnDuty)
 
 	log.Printf("notifyUsersOnDuty.usersOnDutyByName: %+v\n", usersOnDutyByName)
 
@@ -103,11 +105,11 @@ func (this *DutyDailyMessenger) notifyUsersOnDuty(now time.Time, usersOnDuty []d
 			continue
 		}
 
-		//go this.notifyUserOnDuty(user.SlackLogin, message)
+		go this.notifyUserOnDuty(user.SlackLogin, message)
 	}
 }
 
-func renderPrivateMessage(now time.Time, username string, duties []duty_providers.UserOnDuty) string {
+func renderPrivateMessage(now time.Time, username string, duties []opsgenie.UserOnDuty) string {
 	msgs := make([]string, 0, len(duties))
 	for _, duty := range duties {
 		msgs = append(msgs, fmt.Sprintf("from %s to %s",
@@ -128,8 +130,8 @@ func (this *DutyDailyMessenger) notifyUserOnDuty(name, message string) {
 	}
 }
 
-func (this *DutyDailyMessenger) render(now time.Time, userOnDutyNow duty_providers.UserOnDuty,
-	usersOnDutyNext []duty_providers.UserOnDuty) string {
+func (this *DutyDailyMessenger) render(now time.Time, userOnDutyNow opsgenie.UserOnDuty,
+	usersOnDutyNext []opsgenie.UserOnDuty) string {
 	var buf bytes.Buffer
 	buf.Grow(aproxMessageLength)
 

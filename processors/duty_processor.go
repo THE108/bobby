@@ -4,18 +4,18 @@ import (
 	"fmt"
 	"time"
 
-	"bobby/duty_providers"
+	"bobby/opsgenie"
 	"bobby/utils"
 	"strings"
 )
 
 type IDutyProvider interface {
-	GetUsersOnDutyForDate(from, to time.Time, scheduleIDs ...string) ([]duty_providers.UserOnDuty, error)
+	GetUsersOnDutyForDate(from, to time.Time, scheduleID string) ([]opsgenie.UserOnDuty, error)
 }
 
 type DutyCommandProcessor struct {
 	DutyProvider  IDutyProvider
-	ScheduleIDs   []string
+	ScheduleID    string
 	from, to, now time.Time
 }
 
@@ -36,17 +36,17 @@ func (this *DutyCommandProcessor) GetCacheKey() string {
 }
 
 func (this *DutyCommandProcessor) Process() (string, error) {
-	usersOnDuty, err := this.DutyProvider.GetUsersOnDutyForDate(this.from, this.to, this.ScheduleIDs...)
+	usersOnDuty, err := this.DutyProvider.GetUsersOnDutyForDate(this.from, this.to, this.ScheduleID)
 	if err != nil {
 		return "", err
 	}
 
-	usersOnDuty = duty_providers.FilterUsersOnDutyToday(this.now, duty_providers.JoinDuties(usersOnDuty))
+	usersOnDuty = opsgenie.FilterUsersOnDutyToday(this.now, opsgenie.JoinDuties(usersOnDuty))
 
 	return this.renderText(usersOnDuty), nil
 }
 
-func (this *DutyCommandProcessor) renderText(usersOnDuty []duty_providers.UserOnDuty) string {
+func (this *DutyCommandProcessor) renderText(usersOnDuty []opsgenie.UserOnDuty) string {
 	text := fmt.Sprintf("On duty %s:\n", this.from.Format(dateFormatText))
 	for _, item := range usersOnDuty {
 		text += fmt.Sprintf("\t%s from %s to %s\n",

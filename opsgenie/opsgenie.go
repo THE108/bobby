@@ -1,4 +1,4 @@
-package duty_providers
+package opsgenie
 
 import (
 	"encoding/json"
@@ -63,11 +63,7 @@ func NewOpsgenieClient(apiKey string) *OpsgenieClient {
 	}
 }
 
-func (this *OpsgenieClient) GetUsersOnDutyForDate(from, to time.Time, scheduleIDs ...string) ([]UserOnDuty, error) {
-	if len(scheduleIDs) < 1 {
-		return nil, fmt.Errorf("scheduleIDs not provided")
-	}
-
+func (this *OpsgenieClient) GetUsersOnDutyForDate(from, to time.Time, scheduleID string) ([]UserOnDuty, error) {
 	fmt.Printf("from: %v to: %v\n", from, to)
 
 	interval, err := getDaysInterval(from, to)
@@ -77,7 +73,7 @@ func (this *OpsgenieClient) GetUsersOnDutyForDate(from, to time.Time, scheduleID
 
 	values := url.Values{}
 	values.Add("apiKey", this.apiKey)
-	values.Add("name", scheduleIDs[0])
+	values.Add("name", scheduleID)
 	values.Add("interval", strconv.Itoa(interval))
 	values.Add("intervalUnit", "days")
 	values.Add("date", from.In(time.UTC).Format(datetimeFormat))
@@ -156,6 +152,5 @@ func getDaysInterval(from, to time.Time) (int, error) {
 	if intervalDuration < 0 {
 		return 0, fmt.Errorf("'to' must be after 'from' time period")
 	}
-
 	return int(math.Ceil(intervalDuration.Hours() / 24.)), nil
 }

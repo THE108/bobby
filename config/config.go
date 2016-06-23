@@ -23,18 +23,13 @@ type Config struct {
 	Jira struct {
 		Token string `yaml:"token"`
 	} `yaml:"jira"`
-	Pagerduty struct {
-		Token     string `yaml:"token"`
-		Subdomain string `yaml:"subdomain"`
-		Timezone  string `yaml:"timezone"`
-	} `yaml:"pagerduty"`
 	Opsgenie struct {
 		Token string `yaml:"token"`
 	} `yaml:"opsgenie"`
 	DutyCommand struct {
 		Name                   string        `yaml:"name"`
 		Token                  string        `yaml:"token"`
-		ScheduleIDs            []string      `yaml:"schedule-ids"`
+		ScheduleID             string        `yaml:"schedule-id"`
 		CacheTTL               time.Duration `yaml:"cache-ttl"`
 		DailyMessageTimeString string        `yaml:"daily-message-time"`
 		DailyMessageTime       utils.DayTime `yaml:"-"`
@@ -130,20 +125,12 @@ func validate(cfg *Config) error {
 		return fmt.Errorf("timelogs command team must be non empty")
 	}
 
-	if len(cfg.Pagerduty.Subdomain) == 0 {
-		return fmt.Errorf("pagerduty subdomain must be non empty")
-	}
-
-	if len(cfg.Pagerduty.Token) == 0 {
-		return fmt.Errorf("pagerduty token must be non empty")
-	}
-
 	if len(cfg.DutyCommand.Token) == 0 {
 		return fmt.Errorf("duty command token must be non empty")
 	}
 
-	if len(cfg.DutyCommand.ScheduleIDs) == 0 {
-		return fmt.Errorf("duty command schedule ids must be non empty")
+	if len(cfg.DutyCommand.ScheduleID) == 0 {
+		return fmt.Errorf("duty command schedule id must be non empty")
 	}
 
 	return nil

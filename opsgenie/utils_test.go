@@ -1,4 +1,4 @@
-package duty_providers
+package opsgenie
 
 import (
 	"testing"

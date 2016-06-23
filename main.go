@@ -10,10 +10,10 @@ import (
 	"bobby/cache"
 	"bobby/config"
 	"bobby/cron"
-	"bobby/duty_providers"
 	"bobby/jira"
 	"bobby/messengers/duty"
 	"bobby/messengers/timelogs"
+	"bobby/opsgenie"
 	"bobby/processors"
 	"bobby/slack"
 )
@@ -32,7 +32,7 @@ func initCommandProcessManager(cfg *config.Config, slackClient processors.ISlack
 		CacheDuration: cfg.DutyCommand.CacheTTL,
 		Processor: &processors.DutyCommandProcessor{
 			DutyProvider: dutyProvider,
-			ScheduleIDs:  cfg.DutyCommand.ScheduleIDs,
+			ScheduleID:   cfg.DutyCommand.ScheduleID,
 		},
 	})
 
@@ -111,11 +111,7 @@ func main() {
 	cacheManager := cache.NewCache(DefaultCacheSize)
 	jiraClient := jira.NewClient(cfg.Jira.Token)
 
-	// TODO: add switch between pagerduty and opsgenie
-	// dutyProvider := duty_providers.NewPagerdutyClient(cfg.Pagerduty.Subdomain, cfg.Pagerduty.Token,
-	//	cfg.Pagerduty.Timezone)
-
-	dutyProvider := duty_providers.NewOpsgenieClient(cfg.Opsgenie.Token)
+	dutyProvider := opsgenie.NewOpsgenieClient(cfg.Opsgenie.Token)
 
 	runDailyMessangers(cfg, slackClient, dutyProvider, jiraClient)
 
