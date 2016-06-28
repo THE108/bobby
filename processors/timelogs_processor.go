@@ -10,12 +10,12 @@ import (
 )
 
 type IJiraClient interface {
-	GetUsersLoggedLessThenMin(map[string]string, time.Time, time.Time, time.Duration) ([]jira.UserTimeLog, error)
+	GetUsersLoggedLessThenMin([]string, time.Time, time.Time, time.Duration) ([]jira.UserTimeLog, error)
 }
 
 type TimeLogsCommandProcessor struct {
 	JiraClient       IJiraClient
-	Users            map[string]string
+	Users            []string
 	MinimumTimeSpent time.Duration
 	from, to         time.Time
 }

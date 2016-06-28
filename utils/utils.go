@@ -46,6 +46,14 @@ func ToSlackUserLogin(name string) string {
 	return "@" + name
 }
 
+func GetFirstName(fullName string) string {
+	names := strings.SplitN(fullName, " ", 2)
+	if len(names) > 0 {
+		return names[0]
+	}
+	return fullName
+}
+
 func LogIfErr(_ int, err error) {
 	if err != nil {
 		log.Println(err.Error())

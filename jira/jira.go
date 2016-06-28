@@ -150,12 +150,12 @@ func (this *Client) getTotalTimeSpentByUserAsync(user string, from, to time.Time
 	}
 }
 
-func (this *Client) GetUsersLoggedLessThenMin(users map[string]string, from, to time.Time, min time.Duration) ([]UserTimeLog, error) {
+func (this *Client) GetUsersLoggedLessThenMin(users []string, from, to time.Time, min time.Duration) ([]UserTimeLog, error) {
 	result := make([]UserTimeLog, 0, len(users))
 	errors := make([]error, 0, len(users))
 	ch := make(chan durationErrorResult)
 
-	for user := range users {
+	for _, user := range users {
 		go this.getTotalTimeSpentByUserAsync(user, from, to, ch)
 	}
 
@@ -168,13 +168,8 @@ func (this *Client) GetUsersLoggedLessThenMin(users map[string]string, from, to 
 		}
 
 		if res.totalTimeSpent < min {
-			fullName, ok := users[res.user]
-			if !ok {
-				fullName = res.user
-			}
-
 			result = append(result, UserTimeLog{
-				Name:      fullName,
+				Name:      res.user,
 				TimeSpent: res.totalTimeSpent,
 			})
 		}

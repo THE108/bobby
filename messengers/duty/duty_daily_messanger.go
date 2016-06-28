@@ -85,7 +85,7 @@ func (this *DutyDailyMessenger) notifyUsersOnDuty(now time.Time, usersOnDuty []o
 			continue
 		}
 
-		message := renderPrivateMessage(now, user.Name, duties)
+		message := renderPrivateMessage(now, utils.GetFirstName(user.Name), duties)
 		log.Printf("message: %q", message)
 		if len(message) == 0 {
 			continue
@@ -107,7 +107,8 @@ func renderPrivateMessage(now time.Time, username string, duties []opsgenie.User
 		return ""
 	}
 
-	return fmt.Sprintf("Hello, %s! You are on duty %s. Enjoy!", username, strings.Join(msgs, " and "))
+	return fmt.Sprintf("Hello, %s! You are on duty %s. Enjoy!", utils.ToSlackUserLogin(username),
+		strings.Join(msgs, " and "))
 }
 
 func (this *DutyDailyMessenger) notifyUserOnDuty(name, message string) {
@@ -122,14 +123,14 @@ func (this *DutyDailyMessenger) render(now time.Time, userOnDutyNow opsgenie.Use
 	buf.Grow(aproxMessageLength)
 
 	utils.LogIfErr(buf.WriteString(":phone: On duty:\nNow:\n\t"))
-	utils.LogIfErr(buf.WriteString(userOnDutyNow.Name))
+	utils.LogIfErr(buf.WriteString(utils.ToSlackUserLogin(userOnDutyNow.Name)))
 	utils.LogIfErr(buf.WriteString(" till "))
 	utils.LogIfErr(buf.WriteString(userOnDutyNow.End.Format(timeFormatText)))
 	utils.LogIfErr(buf.WriteString("\nNext:\n"))
 
 	for _, entrie := range usersOnDutyNext {
 		utils.LogIfErr(buf.WriteString("\t"))
-		utils.LogIfErr(buf.WriteString(entrie.Name))
+		utils.LogIfErr(buf.WriteString(utils.ToSlackUserLogin(entrie.Name)))
 		utils.LogIfErr(buf.WriteString(" from "))
 		utils.LogIfErr(buf.WriteString(entrie.Start.Format(timeFormatText)))
 		utils.LogIfErr(buf.WriteString(" to "))
