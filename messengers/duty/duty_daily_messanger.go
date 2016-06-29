@@ -30,6 +30,8 @@ type DutyDailyMessenger struct {
 	Config       *config.Config
 	SlackClient  ISlackClient
 	DutyProvider IDutyProvider
+
+	usersByName map[string]config.User
 }
 
 func (this *DutyDailyMessenger) Run(now time.Time) {
@@ -46,6 +48,8 @@ func (this *DutyDailyMessenger) Run(now time.Time) {
 		return
 	}
 
+	this.initUserByNameMap()
+
 	userOnDutyNow, usersOnDutyNext := processUsersOnDuty(now, usersOnDuty)
 
 	this.notifyUsersOnDuty(now, usersOnDutyNext)
@@ -56,6 +60,18 @@ func (this *DutyDailyMessenger) Run(now time.Time) {
 	if err := this.SlackClient.SendMessage(this.Config.Slack.Channel, text); err != nil {
 		log.Printf("Error send slack message: %s", err)
 	}
+}
+
+func (this *DutyDailyMessenger) initUserByNameMap() {
+	if len(this.usersByName) > 0 {
+		return
+	}
+
+	this.usersByName = make(map[string]config.User, len(this.Config.TimelogsCommand.Team))
+	for _, user := range this.Config.TimelogsCommand.Team {
+		this.usersByName[user.Name] = user
+	}
+	return
 }
 
 func processUsersOnDuty(now time.Time, usersOnDuty []opsgenie.UserOnDuty) (opsgenie.UserOnDuty, []opsgenie.UserOnDuty) {
@@ -69,17 +85,12 @@ func processUsersOnDuty(now time.Time, usersOnDuty []opsgenie.UserOnDuty) (opsge
 }
 
 func (this *DutyDailyMessenger) notifyUsersOnDuty(now time.Time, usersOnDuty []opsgenie.UserOnDuty) {
-	usersByName := make(map[string]config.User, len(this.Config.TimelogsCommand.Team))
-	for _, user := range this.Config.TimelogsCommand.Team {
-		usersByName[user.Name] = user
-	}
-
 	usersOnDutyByName := opsgenie.JoinDutiesByUserName(usersOnDuty)
 
 	log.Printf("notifyUsersOnDuty.usersOnDutyByName: %+v\n", usersOnDutyByName)
 
 	for name, duties := range usersOnDutyByName {
-		user, found := usersByName[name]
+		user, found := this.usersByName[name]
 		if !found {
 			log.Printf("can't find user by name: %q", name)
 			continue
@@ -117,20 +128,28 @@ func (this *DutyDailyMessenger) notifyUserOnDuty(name, message string) {
 	}
 }
 
+func (this *DutyDailyMessenger) getUserOnDutySlackLoginByName(name string) string {
+	if userOnDutyNowConfig, found := this.usersByName[name]; found {
+		return utils.ToSlackUserLogin(userOnDutyNowConfig.SlackLogin)
+	}
+	log.Printf("can't find user by name: %q", name)
+	return name
+}
+
 func (this *DutyDailyMessenger) render(now time.Time, userOnDutyNow opsgenie.UserOnDuty,
 	usersOnDutyNext []opsgenie.UserOnDuty) string {
 	var buf bytes.Buffer
 	buf.Grow(aproxMessageLength)
 
 	utils.LogIfErr(buf.WriteString(":phone: On duty:\nNow:\n\t"))
-	utils.LogIfErr(buf.WriteString(utils.ToSlackUserLogin(userOnDutyNow.Name)))
+	utils.LogIfErr(buf.WriteString(this.getUserOnDutySlackLoginByName(userOnDutyNow.Name)))
 	utils.LogIfErr(buf.WriteString(" till "))
 	utils.LogIfErr(buf.WriteString(userOnDutyNow.End.Format(timeFormatText)))
 	utils.LogIfErr(buf.WriteString("\nNext:\n"))
 
 	for _, entrie := range usersOnDutyNext {
 		utils.LogIfErr(buf.WriteString("\t"))
-		utils.LogIfErr(buf.WriteString(utils.ToSlackUserLogin(entrie.Name)))
+		utils.LogIfErr(buf.WriteString(this.getUserOnDutySlackLoginByName(entrie.Name)))
 		utils.LogIfErr(buf.WriteString(" from "))
 		utils.LogIfErr(buf.WriteString(entrie.Start.Format(timeFormatText)))
 		utils.LogIfErr(buf.WriteString(" to "))
