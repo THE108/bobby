@@ -25,7 +25,16 @@ func (this *Client) SendMessage(channelID, text string) error {
 		//IconEmoji: ":stalin:",
 		AsUser: true,
 	})
-	return err
+	return fmt.Errorf("fail send message to %q: %s", channelID, err)
+}
+
+func (this *Client) SendMessageWithEmoji(channelID, text, emoji string) error {
+	_, _, err := this.cli.PostMessage(channelID, text, sc.PostMessageParameters{
+		Username:  "BOB API BOT",
+		IconEmoji: emoji,
+		AsUser:    true,
+	})
+	return fmt.Errorf("fail send message to %q: %s", channelID, err)
 }
 
 func (this *Client) SendPostponedMessage(responseURL, message string) error {
