@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strconv"
 	"time"
+
+	"github.com/codeship/go-retro"
 )
 
 const (
@@ -18,6 +20,8 @@ const (
 	opsgenieSchema = "https"
 	opsgenieHost   = "api.opsgenie.com"
 	opsgeniePath   = "/v1/json/schedule/timeline"
+
+	maxRetryAttempts = 3
 )
 
 type scheduleTimeline struct {
@@ -85,7 +89,7 @@ func (this *OpsgenieClient) GetUsersOnDutyForDate(from, to time.Time, scheduleID
 		RawQuery: values.Encode(),
 	}
 
-	fmt.Printf("url: %s\n", opsgenieURL.String())
+	log.Printf("url: %s\n", opsgenieURL.String())
 
 	req := &http.Request{
 		Method:     "GET",
@@ -96,6 +100,23 @@ func (this *OpsgenieClient) GetUsersOnDutyForDate(from, to time.Time, scheduleID
 		Host:       opsgenieURL.Host,
 	}
 
+	var timeline *scheduleTimeline
+	makeRequstError := retro.DoWithRetry(func() error {
+		result, err := makeRequst(req)
+		if err != nil {
+			return retro.NewBackoffRetryableError(err.Error(), maxRetryAttempts)
+		}
+		timeline = result
+		return nil
+	})
+	if makeRequstError != nil {
+		return nil, makeRequstError
+	}
+
+	return convertScheduleTimelineToUserOnDuty(&timeline), nil
+}
+
+func makeRequst(req *http.Request) (*scheduleTimeline, error) {
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -107,14 +128,12 @@ func (this *OpsgenieClient) GetUsersOnDutyForDate(from, to time.Time, scheduleID
 		return nil, err
 	}
 
-	log.Printf("\n\n%s\n\n", responseBody)
-
 	var timeline scheduleTimeline
 	if err := json.Unmarshal(responseBody, &timeline); err != nil {
 		return nil, fmt.Errorf("error parse response: %s body: %q", err, responseBody)
 	}
 
-	return convertScheduleTimelineToUserOnDuty(&timeline), nil
+	return &timeline, nil
 }
 
 func convertScheduleTimelineToUserOnDuty(timeline *scheduleTimeline) []UserOnDuty {

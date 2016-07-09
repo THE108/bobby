@@ -8,12 +8,16 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/codeship/go-retro"
 )
 
 const (
 	dateFormat = "2006-01-02"
 	jiraHost   = "jira.lazada.com"
 	jiraPath   = "/rest/timesheet-gadget/1.0/raw-timesheet.json"
+
+	maxRetryAttempts = 3
 )
 
 type Entrie struct {
@@ -70,8 +74,6 @@ func (this *Client) GetTimesheetForUser(user string, from, to time.Time) (*Times
 		RawQuery: values.Encode(),
 	}
 
-	//fmt.Printf("url: %s", jiraURL.String())
-
 	req := &http.Request{
 		Method:     "GET",
 		URL:        &jiraURL,
@@ -102,15 +104,21 @@ func (this *Client) GetTimesheetForUser(user string, from, to time.Time) (*Times
 		return nil, err
 	}
 
-	//fmt.Printf("timesheet: %+v\n", timesheet)
-
 	return &timesheet, nil
 }
 
 func (this *Client) GetTotalTimeSpentByUser(user string, from, to time.Time) (time.Duration, error) {
-	timesheet, err := this.GetTimesheetForUser(user, from, to)
-	if err != nil {
-		return 0, err
+	var timesheet *Timesheet
+	getTimesheetError := retro.DoWithRetry(func() error {
+		result, err := this.GetTimesheetForUser(user, from, to)
+		if err != nil {
+			return retro.NewBackoffRetryableError(err.Error(), maxRetryAttempts)
+		}
+		timesheet = result
+		return nil
+	})
+	if getTimesheetError != nil {
+		return 0, getTimesheetError
 	}
 
 	var totalTimeSpent time.Duration

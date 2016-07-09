@@ -9,6 +9,10 @@ import (
 	sc "github.com/nlopes/slack"
 )
 
+const (
+	botUsername = "BOB API BOT"
+)
+
 type Client struct {
 	cli *sc.Client
 }
@@ -21,16 +25,15 @@ func NewClient(token string) *Client {
 
 func (this *Client) SendMessage(channelID, text string) error {
 	_, _, err := this.cli.PostMessage(channelID, text, sc.PostMessageParameters{
-		Username: "BOB API BOT",
-		//IconEmoji: ":stalin:",
-		AsUser: true,
+		Username: botUsername,
+		AsUser:   true,
 	})
 	return fmt.Errorf("fail send message to %q: %s", channelID, err)
 }
 
 func (this *Client) SendMessageWithEmoji(channelID, text, emoji string) error {
 	_, _, err := this.cli.PostMessage(channelID, text, sc.PostMessageParameters{
-		Username:  "BOB API BOT",
+		Username:  botUsername,
 		IconEmoji: emoji,
 		AsUser:    true,
 	})
