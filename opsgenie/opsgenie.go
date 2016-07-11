@@ -104,7 +104,7 @@ func (this *OpsgenieClient) GetUsersOnDutyForDate(from, to time.Time, scheduleID
 	makeRequstError := retro.DoWithRetry(func() error {
 		result, err := makeRequst(req)
 		if err != nil {
-			return retro.NewBackoffRetryableError(err.Error(), maxRetryAttempts)
+			return retro.NewBackoffRetryableError(err, maxRetryAttempts)
 		}
 		timeline = result
 		return nil
@@ -113,7 +113,7 @@ func (this *OpsgenieClient) GetUsersOnDutyForDate(from, to time.Time, scheduleID
 		return nil, makeRequstError
 	}
 
-	return convertScheduleTimelineToUserOnDuty(&timeline), nil
+	return convertScheduleTimelineToUserOnDuty(timeline), nil
 }
 
 func makeRequst(req *http.Request) (*scheduleTimeline, error) {

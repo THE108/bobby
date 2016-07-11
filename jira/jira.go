@@ -112,7 +112,7 @@ func (this *Client) GetTotalTimeSpentByUser(user string, from, to time.Time) (ti
 	getTimesheetError := retro.DoWithRetry(func() error {
 		result, err := this.GetTimesheetForUser(user, from, to)
 		if err != nil {
-			return retro.NewBackoffRetryableError(err.Error(), maxRetryAttempts)
+			return retro.NewBackoffRetryableError(err, maxRetryAttempts)
 		}
 		timesheet = result
 		return nil
