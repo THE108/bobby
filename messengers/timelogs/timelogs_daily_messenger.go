@@ -41,6 +41,8 @@ func (this *TimelogsDailyMessenger) Run(now time.Time) {
 		log.Printf("Error get users time logs: %s", err.Error())
 	}
 
+	log.Printf("usersTimeLogs: %+v", usersTimeLogs)
+
 	jiraLoginToUserMap := make(map[string]config.User, len(this.Config.TimelogsCommand.Team))
 	for _, user := range this.Config.TimelogsCommand.Team {
 		jiraLoginToUserMap[user.JiraLogin] = user
@@ -63,7 +65,7 @@ func (this *TimelogsDailyMessenger) Run(now time.Time) {
 	message := this.render(now, userTimeSpentItems)
 	log.Println(message)
 	if err := this.SlackClient.SendMessage(this.Config.Slack.Channel, message); err != nil {
-		log.Printf("Error send slack message: %s", err)
+		log.Printf("Error send slack message: %s", err.Error())
 	}
 }
 

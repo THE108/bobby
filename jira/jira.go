@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/codeship/go-retro"
+	"stock_api/common/log"
 )
 
 const (
@@ -98,6 +99,8 @@ func (this *Client) GetTimesheetForUser(user string, from, to time.Time) (*Times
 	if err != nil {
 		return nil, err
 	}
+
+	log.Printf("JIRA response for %q from %v to %v: %q", user, from, to, responseBody)
 
 	var timesheet Timesheet
 	if err := json.Unmarshal(responseBody, &timesheet); err != nil {
