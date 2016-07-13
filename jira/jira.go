@@ -131,9 +131,13 @@ func (this *Client) GetTotalTimeSpentByUser(user string, from, to time.Time) (ti
 		worklogItem := &timesheet.Worklog[worklogItemIndex]
 		for entrieIndex := range worklogItem.Entries {
 			entrie := &worklogItem.Entries[entrieIndex]
+			if entrie.Author != user {
+				return 0, fmt.Errorf("worklog author %q != user %q", entrie.Author, user)
+			}
+
 			spentDuration := time.Duration(entrie.TimeSpent) * time.Second
 			totalTimeSpent += spentDuration
-			//fmt.Printf("entrie: %+v start: %v created: %v spent: %v\n",
+			//log.Printf("entrie: %+v start: %v created: %v spent: %v\n",
 			//	entrie,
 			//	time.Unix(entrie.StartDate/1000, 0),
 			//	time.Unix(entrie.Created/1000, 0),
@@ -152,7 +156,6 @@ type durationErrorResult struct {
 
 func (this *Client) getTotalTimeSpentByUserAsync(user string, from, to time.Time, ch chan<- durationErrorResult) {
 	totalTimeSpent, err := this.GetTotalTimeSpentByUser(user, from, to)
-	//fmt.Printf("Total spent by %s: %v\n", user, totalTimeSpent)
 
 	ch <- durationErrorResult{
 		totalTimeSpent: totalTimeSpent,
