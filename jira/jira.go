@@ -21,6 +21,8 @@ const (
 	maxRetryAttempts = 3
 )
 
+var emptyResponseError = fmt.Errorf("empty response")
+
 type Entrie struct {
 	ID                   uint64 `json:"id"`
 	Comment              string `json:"string"`
@@ -111,17 +113,9 @@ func (this *Client) GetTimesheetForUser(user string, from, to time.Time) (*Times
 }
 
 func (this *Client) GetTotalTimeSpentByUser(user string, from, to time.Time) (time.Duration, error) {
-	var timesheet *Timesheet
-	getTimesheetError := retro.DoWithRetry(func() error {
-		result, err := this.GetTimesheetForUser(user, from, to)
-		if err != nil {
-			return retro.NewBackoffRetryableError(err, maxRetryAttempts)
-		}
-		timesheet = result
-		return nil
-	})
-	if getTimesheetError != nil {
-		return 0, getTimesheetError
+	timesheet, err := this.GetTimesheetForUser(user, from, to)
+	if err != nil {
+		return 0, err
 	}
 
 	var totalTimeSpent time.Duration
@@ -155,12 +149,25 @@ type durationErrorResult struct {
 }
 
 func (this *Client) getTotalTimeSpentByUserAsync(user string, from, to time.Time, ch chan<- durationErrorResult) {
-	totalTimeSpent, err := this.GetTotalTimeSpentByUser(user, from, to)
+	var totalTimeSpent time.Duration
+	getTimesheetError := retro.DoWithRetry(func() error {
+		result, err := this.GetTotalTimeSpentByUser(user, from, to)
+		if err != nil {
+			return retro.NewBackoffRetryableError(err, maxRetryAttempts)
+		}
+
+		if result == 0 {
+			return retro.NewBackoffRetryableError(emptyResponseError, maxRetryAttempts)
+		}
+
+		totalTimeSpent = result
+		return nil
+	})
 
 	ch <- durationErrorResult{
 		totalTimeSpent: totalTimeSpent,
 		user:           user,
-		err:            err,
+		err:            getTimesheetError,
 	}
 }
 
@@ -176,7 +183,7 @@ func (this *Client) GetUsersLoggedLessThenMin(users []string, from, to time.Time
 	for i := 0; i < len(users); i++ {
 		res := <-ch
 
-		if res.err != nil {
+		if res.err != nil && res.err != emptyResponseError {
 			errors = append(errors, res.err)
 			continue
 		}
