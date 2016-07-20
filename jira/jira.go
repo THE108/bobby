@@ -23,6 +23,10 @@ const (
 
 var emptyResponseError = fmt.Errorf("empty response")
 
+func isEmptyResponseError(e error) bool {
+	return e.Error() == emptyResponseError.Error()
+}
+
 type Entrie struct {
 	ID                   uint64 `json:"id"`
 	Comment              string `json:"string"`
@@ -183,7 +187,7 @@ func (this *Client) GetUsersLoggedLessThenMin(users []string, from, to time.Time
 	for i := 0; i < len(users); i++ {
 		res := <-ch
 
-		if res.err != nil && res.err != emptyResponseError {
+		if res.err != nil && !isEmptyResponseError(res.err) {
 			errors = append(errors, res.err)
 			continue
 		}
