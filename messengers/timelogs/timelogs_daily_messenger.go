@@ -135,6 +135,6 @@ func (this *TimelogsDailyMessenger) renderPersonalMessage(name string, timeSpent
 		subMessage = fmt.Sprintf("You logged only %v", timeSpent)
 	}
 
-	return fmt.Sprintf("Hi, %s! %s for yesterday. Could you please log at least %d hours!",
+	return fmt.Sprintf("Hi, %s! %s for yesterday. Could you please log at least %d hours?",
 		name, subMessage, int(this.Config.TimelogsCommand.MinimumTimeSpent.Hours()))
 }

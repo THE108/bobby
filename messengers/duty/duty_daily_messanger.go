@@ -118,7 +118,7 @@ func renderPrivateMessage(now time.Time, username string, duties []opsgenie.User
 		return ""
 	}
 
-	return fmt.Sprintf("Hello, %s! You are on duty %s. Enjoy!", utils.ToSlackUserLogin(username),
+	return fmt.Sprintf("Hello, %s! You are on duty %s. Enjoy!", username,
 		strings.Join(msgs, " and "))
 }
 
