@@ -27,6 +27,7 @@ type Config struct {
 		Token string `yaml:"token"`
 	} `yaml:"opsgenie"`
 	DutyCommand struct {
+		Enable                 bool          `yaml:"enable"`
 		Name                   string        `yaml:"name"`
 		Token                  string        `yaml:"token"`
 		ScheduleID             string        `yaml:"schedule-id"`
@@ -35,6 +36,7 @@ type Config struct {
 		DailyMessageTime       utils.DayTime `yaml:"-"`
 	} `yaml:"duty-command"`
 	TimelogsCommand struct {
+		Enable                 bool          `yaml:"enable"`
 		Name                   string        `yaml:"name"`
 		Token                  string        `yaml:"token"`
 		Team                   []User        `yaml:"team"`

@@ -79,19 +79,21 @@ func run(addr string, mux *http.ServeMux) {
 
 func runDailyMessangers(cfg *config.Config, slackClient *slack.Client,
 	dutyProvider processors.IDutyProvider, jiraClient processors.IJiraClient) {
-	dutyDailyMessenger := &duty.DutyDailyMessenger{
-		Config:       cfg,
-		SlackClient:  slackClient,
-		DutyProvider: dutyProvider,
+	if cfg.DutyCommand.Enable {
+		cron.AddJob(cron.EveryWorkingDayAt(cfg.DutyCommand.DailyMessageTime), &duty.DutyDailyMessenger{
+			Config:       cfg,
+			SlackClient:  slackClient,
+			DutyProvider: dutyProvider,
+		})
 	}
-	cron.AddJob(cron.EveryWorkingDayAt(cfg.DutyCommand.DailyMessageTime), dutyDailyMessenger)
 
-	timelogsDailyMessenger := &timelogs.TimelogsDailyMessenger{
-		Config:      cfg,
-		SlackClient: slackClient,
-		JiraClient:  jiraClient,
+	if cfg.TimelogsCommand.Enable {
+		cron.AddJob(cron.EveryWorkingDayAt(cfg.TimelogsCommand.DailyMessageTime), &timelogs.TimelogsDailyMessenger{
+			Config:      cfg,
+			SlackClient: slackClient,
+			JiraClient:  jiraClient,
+		})
 	}
-	cron.AddJob(cron.EveryWorkingDayAt(cfg.TimelogsCommand.DailyMessageTime), timelogsDailyMessenger)
 
 	go cron.Run()
 }
